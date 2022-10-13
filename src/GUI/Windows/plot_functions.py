@@ -23,6 +23,7 @@ import matplotlib.pyplot as plt
 from math import ceil, floor
 from textwrap import fill
 from src.GUI.Windows.helperclasses import *
+import matplotlib.colors as mcolors
 import json
 try:
     from ...Clustering import *
@@ -80,10 +81,10 @@ def result_plot(self, X, projection, plot, new_plot):
             #print(X.columns)
             #print([print(col) for col in self.raw_col])
             #[print(col) if col in X.columns else print(None) for col in self.raw_col]
-            #P=[X[col].tolist() if col in X.columns else np.zeros(X.shape[0]) for col in self.raw_col]
+            #P=[X[col].tolist() if col in X.columns else np.zeros(X.shape[0]) for col in self.raw_col]û
             #print(P)
             print(X)
-            self.plot_data=X.tolist()
+            self.plot_data.extend(X.tolist())
             print(self.plot_data)
         else:
             #send to clustering.py for PCA, Sammon, t-SNE analysis
@@ -99,7 +100,7 @@ def result_plot(self, X, projection, plot, new_plot):
     print("here3")
     print(len(np.unique(self.labels)))
     lbl_size=len(np.unique(self.labels))
-    colors = plt.cm.get_cmap('gist_ncar')
+    colors = plt.cm.get_cmap('gist_rainbow')
     #colors = matplotlib.colormaps['gist_ncar']
     print(colors(0))
     print(colors(257))
@@ -107,7 +108,9 @@ def result_plot(self, X, projection, plot, new_plot):
     #colors = plt.cm.get_cmap('gist_ncar', lbl_size)#(np.linespace(0,1, lbl_size))
     #colors= plt.cm.get_cmap('gist_ncar')(range(0,256,floor(255/len(np.unique(self.labels)))))
     #colors = plt.cm.get_cmap('gist_ncar')(range(len(np.unique(self.labels))))
-    #print(plt.cm.get_cmap('gist_ncar')(range(0,256,floor(255/len(np.unique(self.labels))))))
+    print(np.shape(plt.cm.get_cmap('gist_ncar')(range(0,256,floor(255/len(np.unique(self.labels)))))))
+    print(plt.cm.get_cmap('gist_ncar')(range(0,256,floor(255/len(np.unique(self.labels))))))
+    print([matplotlib.colors.to_hex(colors(i)) for i in np.linspace(0,1, len(np.unique(self.labels)), endpoint=True)])
     #print([list(colors(i)) for i in np.linspace(0, 255, len(np.unique(self.labels)), endpoint=True)])
     print(colors)
     from sklearn import preprocessing
@@ -122,12 +125,20 @@ def result_plot(self, X, projection, plot, new_plot):
     print(cat)
     self.imageIDs.clear()
     self.imageIDs.extend(cat)
+
+    print([list(colors(i)) for i in np.linspace(0, 255, len(np.unique(self.labels)), endpoint=True)])
+    cmap= mcolors.ListedColormap([list(colors(i)) for i in np.linspace(0, 1, len(np.unique(self.labels)), endpoint=True)])
     legend=True
     #if len(np.unique(self.labels))>1:# and len(np.unique(self.labels))<100:
     print('labels')
-    self.plots.append(
-           self.main_plot.axes.scatter3D(self.plot_data[0], self.plot_data[1], self.plot_data[2], s=10,
-                                         c=cat, alpha=1, depthshade=False, picker=1.5, cmap= 'gist_ncar'))#'[list(colors(i)) for i in np.linspace(0, 255, len(np.unique(self.labels)), endpoint=True)]))
+    print(cmap)
+    print(np.shape([colors(i) for i in np.linspace(0,1, len(np.unique(self.labels)), endpoint=True)]))
+    try:
+        self.plots.append(
+           self.main_plot.axes.scatter3D(self.plot_data[0], self.plot_data[1], self.plot_data[2], s=10, alpha=1, depthshade=False, picker=1.5, c=cat, cmap=cmap))
+                                         #c=cat, alpha=1, depthshade=False, picker=1.5, cmap= 'gist_rainbow'))#'[list(colors(i)) for i in np.linspace(0, 255, len(np.unique(self.labels)), endpoint=True)]))
+    except:
+        print(traceback.format_exc())
         #self.plots.append(
         #    self.main_plot.axes.scatter3D(self.plot_data[0], self.plot_data[1], self.plot_data[2], label=self.labels, s=10,
         #                                  colors=colors, alpha=1, depthshade=False, picker=1.5))#, cmap=colors))
@@ -150,7 +161,7 @@ def result_plot(self, X, projection, plot, new_plot):
         cbar.ax.zorder = 6
         cb_ax.yaxis.tick_left()
     '''
-    if len(np.unique(lbls)) > 100:
+    if len(np.unique(lbls)) > 50: #if more than 50 labels default to colorbar
         legend=False
     print("plotted")
     legend_format(self, plot, colors, new_plot, lbls, legend)
@@ -206,6 +217,9 @@ def legend_format(self, plot, colors, new_plot, labels, legend):
                     plt_legend.set_bbox_to_anchor(bbox.transformed(tr))
                     fig.canvas.draw_idle()
         cid = self.main_plot.fig.canvas.mpl_connect('scroll_event', legend_scroll)
+        #try: #remove colorbar if legend
+            #self.main_plot.colorbar
+        self.main_plot.draw()
     else:
         cb_ax = self.main_plot.fig.add_axes([0.625, 0.06, 0.02, 0.875])
         print("bar")
@@ -215,6 +229,8 @@ def legend_format(self, plot, colors, new_plot, labels, legend):
         cbar.ax.yaxis.offsetText.set_fontsize(2)
         cbar.ax.zorder = 6
         cb_ax.yaxis.tick_right()
+        self.main_plot.draw()
+        cbar.remove()
     #axis/title labels
     self.main_plot.axes.set_title(plot + " Plot")
     self.main_plot.axes.set_xlabel(plot + " 1")
@@ -224,7 +240,7 @@ def legend_format(self, plot, colors, new_plot, labels, legend):
         self.original_xlim=[self.plots[-1].axes.get_xlim3d()[0], self.plots[-1].axes.get_xlim3d()[1]]
         self.original_ylim=[self.plots[-1].axes.get_ylim3d()[0], self.plots[-1].axes.get_ylim3d()[1]]
         self.original_zlim=[self.plots[-1].axes.get_zlim3d()[0], self.plots[-1].axes.get_zlim3d()[1]]
-    self.main_plot.draw()
+    #self.main_plot.draw()
     #https: // stackoverflow.com / questions / 55863590 / adding - scroll - button - to - matlibplot - axes - legend
 
 
@@ -239,13 +255,56 @@ def reset_view(self):
 
 def legend_colors(self):
     #get plot rgb values
-    map_colors=[np.array(plot.get_facecolor()[0][0:3]) for plot in self.plots]
+    lgd=self.main_plot.axes.get_legend()
+    print(lgd)
+    print(lgd.legendHandles)
+    print(lgd.legendHandles[0].get_facecolor())
+    print(self.plots[0].get_facecolor())
+    map_colors=[np.array(lbl.get_facecolor()[:-1]) for lbl in self.main_plot.axes.get_legend().legendHandles]
+    #lbl, lbl_ind=np.unique(self.labels, return_index=True)
+    #map_colors, ind = np.unique(self.plots[0].get_facecolor(), return_index=True, axis=0)
+    #map_colors=map_colors[np.argsort(ind)]
+    #map_colors = [np.array(self.plots[0].get_facecolor()[ind][:-1]) for ind in lbl_ind]
+    #map_colors = [np.array(rgb[:-1]) for rgb in map_colors]
+    print(map_colors)
+    print(type(map_colors))
+    print(map_colors[:])
+    print(self.labels)
+    #print(ind)
+    #print(np.array(self.labels)[ind])
+    print(len(np.unique(self.labels)))
+    print(np.unique(self.labels).astype(int))
+    print(list(map(str, np.unique(self.labels))))
+    #map_colors=[np.array(plot.get_facecolor()[0][0:3]) for plot in self.plots]
     #GUI colorpicker
-    colors = colorchannelWindow(len(np.unique(self.labels)), map_colors[:], "Custom Colour Picker", "Labels", np.unique(self.labels))
+    try:
+        colors = colorchannelWindow(len(np.unique(self.labels)), map_colors[:], "Custom Colour Picker", "Labels", list(map(str, np.unique(self.labels))))
+    except:
+        import traceback
+        print(traceback.format_exc())
     colors=np.array(colors.color)
+    print("here")
     #change plot colours
     if np.array_equal(colors, np.array(map_colors))==False:
         legend = self.main_plot.axes.get_legend()
+        print(legend, "herelegend")
+        for i in range(len(colors)):
+            legend.legendHandles[i].set_color(colors[i])
+            print(colors[i])
+        print(colors)
+        try:
+            print("here")
+            cmap=mcolors.ListedColormap(colors)
+            print("here2")
+            print(dir(self.plots[0]))
+            self.plots[0].set_cmap(cmap)
+            print("here3")
+            self.main_plot.draw()
+            print("here4")
+        except:
+            print(traceback.format_exc())
+        #self.plot[0].set_color(colors)
+        '''
         if len(np.unique(self.labels))>1:
             for i in range(len(np.unique(self.labels))):
                 self.plots[i].set_color(colors[i])
@@ -253,20 +312,31 @@ def legend_colors(self):
         else:
             self.plots[0].set_color(colors[0])
             legend.legendHandles[0].set_color(colors[0])
-        self.main_plot.draw()
+        '''
+
 
 #export current plot data and x, y, z limits
 def save_file(self, map):
     name = QFileDialog.getSaveFileName(self, 'Save File', filter=self.tr('.json'))
+    print(name)
+    print(map)
+    print(self.original_xlim, self.original_ylim, self.original_zlim)
+    print(self.feature_file[0])
+    print([isinstance(data,np.ndarray) for data in self.plot_data])
+    print([data.tolist() if isinstance(data,np.ndarray) else data for data in self.plot_data])
     if name[0] !='':
         info = {
                 'plot_projection': map,
-                'plot_coordinates': [data.tolist() for data in self.plot_data],
+                'plot_coordinates': [data.tolist() if isinstance(data,np.ndarray) else data for data in self.plot_data],
                 'x_limit': self.original_xlim,
                 'y_limit': self.original_ylim,
                 'z_limit': self.original_zlim,
+                'channel_paths':self.ch_path,
+                'plot_columns':self.plotcols,
+                'rawdata_columns':self.raw_col,
                 'feature_filename': self.feature_file[0]
         }
+        print(info)
         with open("".join(name), 'w') as f:
             json.dump(info, f)
 
@@ -277,7 +347,8 @@ def import_file(self, map_dropdown, colordropdown, twod, threed):
         with open(filename, "r") as f:
             try:
                 data=json.load(f)
-                if list(data.keys())==['plot_projection','plot_coordinates','x_limit','y_limit','z_limit', 'feature_filename']:
+                if list(data.keys())==['plot_projection','plot_coordinates','x_limit','y_limit','z_limit',
+                                       'channel_paths','plot_columns','rawdata_columns','feature_filename']:
                         plot_coord=[np.array(plot_data) for plot_data in data.get('plot_coordinates')]
                         if len(plot_coord)==3:
                             self.plot_data.clear()
@@ -291,14 +362,18 @@ def import_file(self, map_dropdown, colordropdown, twod, threed):
                             self.original_ylim = data.get('y_limit')
                             self.original_zlim = data.get('z_limit')
                             map_dropdown.blockSignals(True)
+                            if map_dropdown.findText(data.get('plot_projection'))==-1:
+                                map_dropdown.addItem(data.get('plot_projection'))
                             map_dropdown.setCurrentIndex(map_dropdown.findText(data.get('plot_projection')))
                             map_dropdown.blockSignals(False)
-
-                            self.loadFeaturefile(colordropdown, map_dropdown.currentText(), False, data.get('feature_filename'))
+                            self.ch_path=data.get('channel_paths')
+                            self.plotcols=data.get('plot_columns')
+                            self.raw_col=data.get('rawdata_columns')
+                            self.loadFeaturefile(colordropdown, map_dropdown, False, data.get('feature_filename'))
                         else:
                             errorWindow("Import Plot Data Error","Check JSON file. 'plot_coordinates' must be 3D (list of x, y, z coordinates)")
                 else:
-                    errorWindow("Import Plot Data Error", "Check if correct file. Requires Following Labels: plot_projection, plot_coordinates, x_limit , y_limit ,z_limit, 'feature_filename'")
+                    errorWindow("Import Plot Data Error", "Check if correct file. Requires Following Labels: plot_projection, plot_coordinates, x_limit , y_limit ,z_limit, 'feature_filename', 'channel_paths','plot_columns','rawdata_columns'")
             except Exception as ex:
                 errorWindow("Import Plot Data Error", "Check if correct file. \n\nPython Error: {}".format(ex))
 

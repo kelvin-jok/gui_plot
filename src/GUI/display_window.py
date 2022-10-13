@@ -60,10 +60,8 @@ class displayWindow(QWidget):
         piemaps = clustering.addAction("Pie Maps")
         export = clustering.addAction("Export Cluster Results")
         plotproperties = menubar.addMenu("Plot Properties")
-        rotation_enable = plotproperties.addAction("3D Rotation Enable")
-        rotation_disable = plotproperties.addAction("3D Rotation Disable")
-        zoom_enable=plotproperties.addAction("3D Zoom Enable")
-        zoom_disable=plotproperties.addAction("3D Zoom Disable")
+        rotation_enable = plotproperties.addAction("Enable 3D Rotation (Left-Click) & Zoom (Right-Click)")
+        rotation_disable = plotproperties.addAction("Disable 3D Rotation & Zoom")
         resetview = plotproperties.addAction("Reset Plot View")
 
         # defining widgets
@@ -74,7 +72,7 @@ class displayWindow(QWidget):
         exportdata = QPushButton("Export Current Plot Data (.JSON)")
         cmap=QPushButton("Legend Colours")
         map_type = QComboBox()
-        map_type.addItems(["PCA","t-SNE","Sammon"])
+        map_type.addItems(["PCA","t-SNE","UMAP","Sammon"])
         twod = QRadioButton("2D")
         threed = QRadioButton("3D")
         data_columns=QPushButton("Change Plot Data Columns")
@@ -105,8 +103,6 @@ class displayWindow(QWidget):
         export.triggered.connect(lambda: export_cluster(self.plot_data, self.filtered_data, self.numcluster, self.feature_file[0]) if len(self.plot_data) >0 else errorWindow("Error Dialog","Please Select Feature File. No data is currently displayed"))
         rotation_enable.triggered.connect(lambda: self.main_plot.axes.mouse_init())
         rotation_disable.triggered.connect(lambda: self.main_plot.axes.disable_mouse_rotation())
-        #zoom_enable.triggered.connect(lambda: self.main_plot.axes.mouse_init(zoom_btn=1))
-        #zoom_disable.triggered.connect(lambda: self.main_plot.axes.disable_mouse_rotation())
         resetview.triggered.connect(lambda: reset_view(self))
         exportdata.clicked.connect(lambda: save_file(self, map_type.currentText()) if len(self.plot_data) > 0 else errorWindow("Error Dialog","Please Select Feature File. No data is currently displayed"))
         prevdata.clicked.connect(lambda: import_file(self, map_type, colordropdown, twod, threed))
@@ -138,8 +134,7 @@ class displayWindow(QWidget):
                 self.main_plot.axes.get_zaxis().line.set_linewidth(1)
                 self.main_plot.axes.tick_params(axis='z', labelsize=10)
                 self.main_plot.draw()
-                #rotate left click, disabled zoom right click
-                #self.main_plot.axes.mouse_init(rotate_btn=1, zoom_btn=[])
+                #rotate left click, zoom right click
                 self.main_plot.axes.mouse_init()
             if self.feature_file and colordropdown.count() > 0 and len(self.plot_data)>0:
                 self.data_filt(colordropdown, self.projection, plot, True)
@@ -150,7 +145,7 @@ class displayWindow(QWidget):
         twod.toggled.connect(lambda: check_projection("2d", map_type.currentText()) if twod.isChecked() else None)
         threed.toggled.connect(lambda: check_projection("3d", map_type.currentText()) if threed.isChecked() else None)
         twod.setChecked(True)
-        data_columns.clicked.connect(lambda: self.loadFeaturefile(colordropdown, map_type, False, prevfile=self.feature_file[0]) if self.feature_file else None)
+        data_columns.clicked.connect(lambda: self.loadFeaturefile(colordropdown, map_type, True, prevfile=self.feature_file[0]) if self.feature_file else None)
         picked_pt = interactive_points(self.main_plot, self.projection, self.plot_data, self.labels,self.ch_path, self.feature_file, self.color, self.imageIDs, colordropdown)
         self.main_plot.fig.canvas.mpl_connect('pick_event', picked_pt)
         colordropdown.currentIndexChanged.connect(lambda: self.data_filt(colordropdown, self.projection, map_type.currentText(),False) if self.feature_file and colordropdown.count() > 0 else None)
@@ -171,7 +166,7 @@ class displayWindow(QWidget):
 
     def loadFeaturefile(self, grouping, plot, new_plot, prevfile=None):
         filename=''
-        if new_plot:
+        if new_plot and isinstance(prevfile, type(None)):
             filename, dump = QFileDialog.getOpenFileName(self, 'Open Feature File', '', "Text files (*.txt *.csv)")#, 'Text files (*.txt))
             print(filename, dump)
         elif isinstance(prevfile, str) and os.path.exists(prevfile) == False:
@@ -179,12 +174,12 @@ class displayWindow(QWidget):
         if filename != '' or (not isinstance(prevfile, type(None)) and os.path.exists(prevfile)):
             #try:
                 self.feature_file.clear()
-                if new_plot:
+                if new_plot and filename:
                     self.feature_file.append(filename)
                 else:
                     self.feature_file.append(prevfile)
                 print(self.feature_file)
-                grouping, cancel=self.color_groupings(grouping, plot)
+                grouping, cancel=self.color_groupings(grouping, plot, new_plot)
                 if not cancel:
                     reset_view(self)
                     self.data_filt(grouping, self.projection, plot.currentText(), new_plot)
@@ -195,7 +190,7 @@ class displayWindow(QWidget):
             #    errorWindow("Feature File Error", "Check Validity of Feature File (.txt). \nPython Exception Error: {}".format(ex))
 
 
-    def color_groupings(self, grouping, plot):
+    def color_groupings(self, grouping, plot, new_plot):
         #read feature file
         #feature_data = pd.read_csv(self.feature_file[0], sep='\t', na_values='        NaN')
         if 'csv' in self.feature_file[0]:
@@ -254,30 +249,35 @@ class displayWindow(QWidget):
             filt_lbl=np.concatenate((filt_lbl, ["Texture_Features"]))
         '''
         #select features window
-        win=selectWindow(chk_lbl, "Filter Feature File Groups and Channels", "Grouping", "Channels", grp, df, self.ch_path, self.plotcols, self.raw_col, True, num_lbl)
+        win=selectWindow(chk_lbl, "Column Selection - Feature File", "Grouping", "Channels", grp, df, self.ch_path, self.plotcols, self.raw_col, True, num_lbl)
         if not win.x_press:
             #change colorby window
             grouping.clear()
             grouping.addItem("No Grouping")
             print("here1")
-            for col in win.colorby_txt.toPlainText().rsplit("\n"):
-                grouping.addItem(col)
+            if win.colorby_txt.toPlainText() not in ['No Selected Columns', '']:
+                for col in win.colorby_txt.toPlainText().rsplit("\n"):
+                    grouping.addItem(col)
             self.ch_path.clear()
             self.plotcols.clear()
             self.raw_col.clear()
             print(win.imgpath)
-            if win.chcols.toPlainText()!= 'No Selected Columns':
+            if win.chcols.toPlainText() not in ['No Selected Columns', '']:
+                #add path button used
                 if win.imgpath!='Add Path':
                     self.ch_path.extend([win.imgpath] + win.chcols.toPlainText().rsplit('\n'))
+                #path exists in filename
                 else:
                     self.ch_path.extend(win.chcols.toPlainText().rsplit('\n'))
-            if win.plotcols.toPlainText()!= 'No Selected Columns':
+            if win.plotcols.toPlainText() not in ['No Selected Columns', '']:
                 self.plotcols.extend(win.plotcols.toPlainText().rsplit('\n'))
             self.raw_col=[box.currentText() for box in win.axis.boxes]
             print(self.raw_col.count("None"))
             if len(self.raw_col)>0 and self.raw_col.count("None")<2:
-                plot.addItem("Raw Data")
-                plot.setCurrentIndex(plot.findText("Raw Data"))
+                if plot.findText("Raw Data")==-1:
+                    plot.addItem("Raw Data")
+                if new_plot:
+                    plot.setCurrentIndex(plot.findText("Raw Data"))
         grouping.blockSignals(False)
         print('here')
         return(grouping, win.x_press)

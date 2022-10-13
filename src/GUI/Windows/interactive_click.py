@@ -212,6 +212,8 @@ class interactive_points():
 
     def __call__ (self, event): #picker is right-click activation
         if event.mouseevent.inaxes is not None and event.mouseevent.button is MouseButton.RIGHT:
+            if len(self.ch)==0 or not os.path.exists(self.ch[0]):
+                return(errorWindow("Images", "Image Filenames Column invalid. Go to 'Change Plot Data Columns' and select valid Image Filenames Column"))
             #https://github.com/matplotlib/matplotlib/issues/ 19735   ---- code below from github open issue. wrong event.ind coordinate not fixed in current version matplotlib...
             xx = event.mouseevent.x
             yy = event.mouseevent.y

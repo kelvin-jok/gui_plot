@@ -22,6 +22,8 @@ from scipy.spatial.distance import cdist
 import sklearn.metrics as met
 import numpy as np
 import matplotlib
+import umap
+import traceback
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar
 import pandas as pd
 
@@ -224,33 +226,34 @@ class clusterdisplay(object):
         win.exec()
 
 
-class perplexity_set(object):
-    def __init__(self, X):
+class value_set(object):
+    def __init__(self, X, win_name, lbl, init_val):
         win = QDialog()
-        win.setWindowTitle("Set Perplexity")
+        win.setWindowTitle(win_name)
         win.setLayout(QFormLayout())
-        label = QLabel("Enter Perplexity (Recommended 5 - 50): \nNote: For current dataset max perplexity is {}".format(
-            len(X) - 1))
-        perplexityset = QSpinBox()
-        perplexityset.setMaximum(len(X) - 1)
-        perplexityset.setValue(0)
-        if len(X) > 30:
-            perplexityset.setValue(30)
+        label = QLabel(lbl)
+        val_set = QSpinBox()
+        val_set.setMaximum(len(X) - 1)
+        #if below max set as zero
+        if len(X) > init_val:
+            val_set.setValue(init_val)
+        else:
+            val_set.setValue(0)
         btn_ok = QPushButton("Confirm")
-        win.layout().addRow(label, perplexityset)
+        win.layout().addRow(label, val_set)
         win.layout().addRow(btn_ok)
-        btn_ok.clicked.connect(lambda: self.confirmed_perplexity(perplexityset.value(), win))
+        btn_ok.clicked.connect(lambda: self.confirmed_perplexity(val_set.value(), win, win_name))
         win.setWindowFlag(Qt.WindowCloseButtonHint, False)
         win.show()
         win.setWindowFlags(win.windowFlags() | Qt.CustomizeWindowHint | Qt.WindowStaysOnTopHint)
         win.exec()
 
-    def confirmed_perplexity(self, perplexity, win):
-        if perplexity > 0:
-            self.perplexity = perplexity
+    def confirmed_perplexity(self, val, win, win_name):
+        if val > 0:
+            self.val = val
             win.close()
         else:
-            errorWindow("Set Perplexity", "Perplexity must be greater than zero")
+            errorWindow(win_name, "Set Value must be greater than zero")
 
 
 class Clustering:
@@ -261,24 +264,36 @@ class Clustering:
 
     # projection data calculation
     def plot_type(self, X, dim, plot):
-
-        if plot == "PCA":
-            func = 'linear'
-            sc = StandardScaler()
-            X_show = sc.fit_transform(X)
-            pca = KernelPCA(n_components=dim, kernel=func)
-            P = pca.fit(X_show).transform(X_show)
-            return (P)
-        elif plot == "t-SNE":
-            win_per = perplexity_set(X)
-            T = TSNE(n_components=dim, perplexity=win_per.perplexity, init='pca', learning_rate='auto').fit_transform(X)
-            return (T)
-        elif plot == "Sammon":
-            S, E = self.sammon(self, X, dim)
-            return (S)
-        else:
-            raise Exception("Invalid plot")
-
+        try:
+            if plot == "PCA":
+                func = 'linear'
+                sc = StandardScaler()
+                X_show = sc.fit_transform(X)
+                pca = KernelPCA(n_components=dim, kernel=func)
+                P = pca.fit(X_show).transform(X_show)
+                return (P)
+            elif plot == "t-SNE":
+                win_per = value_set(X, "Set Perplexity", "Enter Perplexity (Recommended 5 - 50): \nNote: For current dataset max perplexity is {}".format(len(X) - 1),
+                                    30)
+                T = TSNE(n_components=dim, perplexity=win_per.val, init='pca', learning_rate='auto').fit_transform(X)
+                return (T)
+            elif plot == "Sammon":
+                S, E = self.sammon(self, X, dim)
+                return (S)
+            elif plot == "UMAP":
+                #https://umap-learn.readthedocs.io/en/latest/api.html
+                win_per = value_set(X, "Set Size of Local Neighbourhood", "Enter Neighbourhood size (Recommended 2 - 100): \nNote: For current dataset have {} samples".format(len(X)), 15)
+                U=umap.UMAP(n_neighbors=win_per.val, n_components=dim).fit_transform(X)
+                print(U)
+                print("here")
+                return(U)
+            else:
+                raise Exception("Invalid plot")
+        except:
+            txt=traceback.format_exc()
+            if plot =="Sammon":
+                "\n".join("If have data with negative values may cause issues", txt)
+            errorWindow("Dimensionality Reduction Failed", txt)
     def cluster_est(self, X):
         numclust = self.estimateNumClusters(self, X)
 

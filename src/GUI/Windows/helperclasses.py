@@ -150,7 +150,7 @@ class selectWindow(object):
         if len(chk_lbl) > 0:
             if filter_window:
                 #select columns for each category
-                ch_btn, self.chcols, ch_path = self.select_column(["Select Filename Columns", "Add Path"], "Images (Note: Must use Add Path for this module)", win, 0, 0,  (lambda x: "\n".join(x) if len(x)>0 else "No Selected Columns" )(chan_cols))
+                ch_btn, self.chcols, ch_path = self.select_column(["Select Filename Columns", "Add Path"], "Image Filenames (Note: Must use Add Path for this module)", win, 0, 0,  (lambda x: "\n".join(x) if len(x)>0 else "No Selected Columns" )(chan_cols))
                 colorby_btn, self.colorby_txt = self.select_column(["colourby groups"], "Colorby Selection", win, 0, 1, (lambda x: "\n".join(x)  if len(x)>0 else "No Selected Columns" )(groupings))
                 plotcol_btn, self.plotcols = self.select_column(["Select Plot Data Columns"], " Current Plot Data Selection", win, 0, 2, (lambda x: "\n".join(x) if len(x)>0 else "No Selected Columns" )(plot_cols))
                 #plotting raw data vs dimensionality reduction
@@ -173,7 +173,7 @@ class selectWindow(object):
                                                                                         if raw_box.grp_box.findChildren(QCheckBox)[0].isChecked()==True else [box.clear() for box in self.axis.boxes])
                 ok_button.clicked.connect(lambda: self.selected(win, groupings, self.colorby_txt.toPlainText(), raw_box.grp_box.findChildren(QCheckBox)[0].isChecked(), self.axis.boxes, user_path=ch_path))
 
-                if len(raw_cols) > 0:
+                if len(raw_cols) > 0 and raw_cols!=["None"]*3:
                     print(self.plotcols.toPlainText())
                     raw_box.grp_box.findChildren(QCheckBox)[0].setChecked(True)
                     [box.setCurrentText(col) for box, col in zip(self.axis.boxes, raw_cols)]
@@ -246,16 +246,20 @@ class selectWindow(object):
     # return final selected groups/results
     def selected(self, win, groupings, grp_box, raw=False, axes=False, user_path=False):
         if isinstance(grp_box, str):
-            self.imgpath=user_path.text()
-            if raw==True:
-                ax=[axis.currentText() for axis in axes]
-                print(ax.count("None"))
-                if ax.count("None")>1:
-                    errorWindow("Plot Raw Data", "At least two axes must be value other than None")
-                    return None
+            if self.plotcols.toPlainText() in ["No Selected Columns",""]:
+                errorWindow("Filter Feature File Error", "Current Plot Data Selection must have selected columns")
+                return None
             else:
-                groupings.extend(grp_box.rsplit("\n"))
-                [box.addItems(['None']) for box in axes]
+                self.imgpath=user_path.text()
+                if raw==True:
+                    ax=[axis.currentText() for axis in axes]
+                    print(ax.count("None"))
+                    if ax.count("None")>1:
+                        errorWindow("Plot Raw Data", "At least two axes must be value other than None")
+                        return None
+                else:
+                    groupings.extend(grp_box.rsplit("\n"))
+                    [box.addItems(['None']) for box in axes]
         else:
             for checkbox in grp_box:
                 # print('%s: %s' % (checkbox.text(), checkbox.isChecked()))
@@ -575,11 +579,11 @@ class filterWindow(object):
         else:
             txt=list(filter(None, disp_txt))
             if ok:
-                if len(txt)>0:
-                    self.prevcols = "\n".join(txt)  # self.col_filt.toPlainText()[:-1]
-                    win.close()
-                else:
-                    errorWindow("Selected Columns Error", "No Columns were selected")
+                #if len(txt)>0:
+                self.prevcols = "\n".join(txt)  # self.col_filt.toPlainText()[:-1]
+                win.close()
+                #else:
+                #    errorWindow("Selected Columns Error", "No Columns were selected")
             else:
                 for btn_ind in range(len(columns)):
                     if btn_ind in sorter:
