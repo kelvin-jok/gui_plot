@@ -25,11 +25,9 @@ from pandas.api.types import is_numeric_dtype
 try:
     from .interactive_click import interactive_points
     from src.GUI.Windows.plot_functions import *
-    from ...Training import *
 except ImportError:
     from src.GUI.Windows.interactive_click import interactive_points
     from src.GUI.Windows.plot_functions import *
-    from src.Training import *
 
 class displayWindow(QWidget):
     def __init__(self):
@@ -52,8 +50,6 @@ class displayWindow(QWidget):
         file = menubar.addMenu("File")
         inputfile = file.addAction("Input Feature File")
         data = menubar.addMenu("Data Analysis")
-        classification = data.addMenu("Classification")
-        selectclasses = classification.addAction("Select Classes")
         clustering = data.addMenu("Clustering")
         estimate = clustering.addAction("Estimate Clusters")
         setnumber = clustering.addAction("Set Number of Clusters")
@@ -96,7 +92,6 @@ class displayWindow(QWidget):
         box.setLayout(boxlayout)
         #menu actions activated
         inputfile.triggered.connect(lambda: self.loadFeaturefile(colordropdown, map_type, True))
-        selectclasses.triggered.connect(lambda: TrainingFunctions().selectclasses(np.array(self.filtered_data), np.array(self.labels)) if len(self.plot_data)>0 else errorWindow("Error Dialog","Please Select Feature File. No data is currently displayed"))
         estimate.triggered.connect(lambda: Clustering().cluster_est(self.filtered_data) if len(self.plot_data) > 0 else errorWindow("Error Dialog","Please Select Feature File. No data is currently displayed"))
         setnumber.triggered.connect(lambda: self.setnumcluster(colordropdown.currentText()) if len(self.plot_data) > 0 else errorWindow("Error Dialog","Please Select Feature File. No data is currently displayed"))
         piemaps.triggered.connect(lambda: piechart(self.plot_data, self.filtered_data, self.numcluster, np.array(self.labels), self.plot[0].get_cmap()) if len(self.plot_data) > 0 else errorWindow("Error Dialog","Please Select Feature File. No data is currently displayed"))
