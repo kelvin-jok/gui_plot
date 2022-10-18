@@ -55,10 +55,11 @@ class interactive_points():
 
                 #info layout
                 info_box = QVBoxLayout()
-                file_info=QLabel("FileName:")
-                file_info.setAlignment(Qt.AlignTop)
+                file_info = QTextEdit()
+                file_info.setText("FileName:")
                 file_info.setStyleSheet("background-color: white")
-                file_info.setWordWrap(True)
+                file_info.setReadOnly(True)
+                file_info.setAlignment(Qt.AlignTop)
                 file_info.setFixedWidth(200)
                 file_info.setMinimumHeight(350)
                 info_box.addStretch()
@@ -74,137 +75,58 @@ class interactive_points():
                 main_plot.axes.get_xaxis().set_visible(False)
                 main_plot.axes.get_yaxis().set_visible(False)
 
-                # adjustbar layout
-                adjustbar = QSlider(Qt.Vertical)
-                adjustbar.setMinimum(0)
-                adjustbar.setValue(0)
-                adjustbar.setFixedWidth(50)
-                adjustbar.setPageStep(1)
-                adjustbar.setSingleStep(1)
-                adjustbar.setStyleSheet(
-                    "QSlider::groove:vertical {background-color: #8DE8F6; border: 1px solid;height: 700px;margin: 0px;}"
-                    "QSlider::handle:vertical {background-color: #8C8C8C; border: 1px silver; height: 30px; width: 10px; margin: -5px 0px;}")
-
                 #parent layout
                 toolbar = NavigationToolbar(self.main_plot, self.win)
                 grid.addWidget(toolbar, 0, 1)
                 grid.addLayout(info_box, 1, 0)
                 grid.addWidget(main_plot, 1, 1)
-                grid.addWidget(adjustbar, 1, 2)
                 self.win.setLayout(grid)
 
                 #callbacks
-                self.plot_img(adjustbar, main_plot, self.color, label, cur_label, index, feature_file, file_info, imageID)
+                self.plot_img(main_plot, self.color, label, cur_label, index, feature_file, file_info, imageID)
                 self.win.exec()
-    def read_featurefile(self, slicescrollbar, color, label, cur_label, index, feature_file, file_info, imageID):
+    def read_featurefile(self, color, label, cur_label, index, feature_file, file_info, file_text, imageID, chans):
         if feature_file:
             # extract image details from feature file
             if 'csv' in feature_file[0]:
                 data = pd.read_csv(feature_file[0], na_values='NaN')
             else:
                 data = pd.read_csv(feature_file[0], sep="\t", na_values='NaN')
-            '''
-            if os.path.exists(data["MetadataFile"].str.replace(r'\\', '/', regex=True).iloc[0])==False:
-                self.error = True
-                raise FileNotFoundError
-            data = pd.read_csv(data["MetadataFile"].str.replace(r'\\', '/', regex=True).iloc[0], sep="\t", na_values='NaN')
-            
-            #getting metadatafile
-            cols=data.columns.to_list()
-            if any("Channel" in ch for ch in cols)==False or ('Stack' not in cols) or ('ImageID' not in cols):
-                self.error = True
-                raise MissingChannelStackError
-            ch_len = (list(np.char.find(list(data.columns), 'Channel_')).count(0))
-            '''
+            #get image loc in dataframe
             cur_index=0
             if len(np.unique(imageID)) > 1:
-                '''
-                print("\n")
-                print(index)
-                print(self.labels)
-                print(imageID)
-                cat_num=imageID[index]
-                print(cat_num)
-                cat_locs=np.where(imageID==cat_num)[0]
-                print(cat_locs)
-                cat_loc_ind=np.where(cat_locs==index)[0][0]
-                print(cat_loc_ind)
-                print(label[cat_num], type(label[cat_num]), self.lbl_filt.currentText(), np.unique(label)[cat_num], type(np.unique(label)[cat_num]))
-                lbl=np.unique(label)[cat_num]
-                '''
-                '''
-                if is_numeric_dtype(data[self.lbl_filt.currentText()]):
-                    if str.isdigit(lbl):
-                        lbl=int(lbl)
-                    else:
-                        dec=len(lbl)-str(lbl).find(".")
-                        print(str(lbl).find("."), lbl.find("."))
-                        print(len(lbl), dec)
-                        lbl=round(lbl, dec)
-                
-                pd_allinstances=data.loc[data[self.lbl_filt.currentText()] == lbl]
-                print(pd_allinstances)
-                pd_ind=list(pd_allinstances.index)
-                print(list(pd_allinstances.index))
-                cur_index=pd_ind[cat_loc_ind]
-                print(cur_index)
-                '''
-                #pd_singleinstance=pd_allinstances.iloc[cat_loc_ind]
-                #print(pd_singleinstance)
-                #print(pd_singleinstance.index)
-                #cur_index=pd_singleinstance.index
-                #print(index)
-                #print(label)
-                #print(imageID)
                 cur_index=index
-                #cur_index = list(locate(label, lambda x: x == cur_label))[index]
-                #row_ind = imageID[cur_ind]
-                #stacks = data[data[self.ch[0]] == row_ind][self.ch[0]]
             else:
                 cur_index=index
-                print(cur_index)
-                #stacks = data[data[self.ch[0]] == index + 1][self.ch[0]]
-            if len(self.ch)==2:
-                file_text="Filename: " + os.path.join(self.ch[0],data[self.ch[1]].iloc[cur_index]).replace('\\', "/")
-            else:
-                file_text = "Filename: " + os.path.join(data[self.ch[0]].iloc[cur_index]).replace('\\', "/")
-            if len(file_text)>20:
-                #prevent text placed off-screen
-                file_text=fill(file_text, 25)
+            if not os.path.exists(os.path.join(chans[0], data[chans[1]].iloc[cur_index].replace('\\', "/"))):
+                errorWindow("Image Path Issue", "check that '{}' is a valid path".format(os.path.join(chans[0], data[chans[1]].iloc[cur_index].replace('\\', "/"))))
+            file_text="\n\n".join([file_text,os.path.join(chans[0],data[chans[1]].iloc[cur_index]).replace('\\', "/")])
             file_info.setText(file_text)
-
-            #only slice projection can use slider
-            slicescrollbar.setMaximum(0)
-            # initialize array as image size with rgb and # channels
-            '''
-            empty_img = PIL.Image.open(data[self.ch[0]].str.replace(r'\\', '/', regex=True).iloc[cur_index]).size
-            if PIL.Image.open(data['Channel_1'].str.replace(r'\\', '/', regex=True).iloc[cur_index]).mode in ["CMYK","HSV", "LAB", "RGB", "RGBA", "RGBX", "YCbCr"]:
-                self.error = True
-                raise ColorIMG
-            empty_img = np.zeros((ch_len, empty_img[1], empty_img[0], 3))
-            '''
-            if len(self.ch) == 2:
-                img=np.array(PIL.Image.open(os.path.join(self.ch[0],data[self.ch[1]].iloc[cur_index].replace('\\', "/"))))
-            else:
-                img = np.array(PIL.Image.open(os.path.join(data[self.ch[0]].iloc[cur_index].replace('\\', "/"))))
-            return(data, img)#, meta_loc, stacks, ch_len, bounds, threshold)
-    def plot_img(self, slicescrollbar, img_plot, color, label, cur_label, index, feature_file, file_info, imageID):
-        #try:
-            #data, img, metaloc, stacks,ch_len, bounds, threshold=self.read_featurefile(slicescrollbar, color, label, cur_label, index, feature_file, file_info, ch_info, imageID, pjt)
-            data, img = self.read_featurefile(slicescrollbar, color, label,cur_label, index,feature_file, file_info, imageID)
-
-            img_plot.axes.imshow(img)
-            #img_plot.axes.set_aspect(aspect='auto')
-            img_plot.axes.axis('off')
+            # get image channel
+            img = np.array(PIL.Image.open(os.path.join(chans[0], data[chans[1]].iloc[cur_index].replace('\\', "/"))))
+            return(data, img, file_text)#, meta_loc, stacks, ch_len, bounds, threshold)
+    def plot_img(self, img_plot, color, label, cur_label, index, feature_file, file_info, imageID):
+        try:
+            filetext="Filename: "
+            #reset plot
+            allaxes = img_plot.fig.get_axes()
+            for ax in allaxes:
+                img_plot.fig.delaxes(ax)
+            #get images then plot
+            for chan in range(1, len(self.ch)):
+                data, img, filetext = self.read_featurefile(color, label,cur_label, index,feature_file, file_info, filetext, imageID, [self.ch[0], self.ch[chan]])
+                if len(self.ch)>2:
+                    axes = img_plot.fig.add_subplot(int(np.ceil(np.sqrt(len(self.ch)-1))), int(np.round_(np.sqrt(len(self.ch)-1), decimals=0)), chan)
+                else:
+                    axes = img_plot.fig.add_subplot(1, 1, 1)
+                axes.imshow(img)
+                axes.axis('off')
             img_plot.fig.subplots_adjust(wspace=0.0075, hspace=0.0075)
             img_plot.draw()
             self.win.show()
-            #self.win.exec()
-        #except ColorIMG:
-        #    errorWindow("Metadata Error", "Cannot use RGB/A or Colored Images")
-        #except Exception as ex:
-        #    errorWindow("Metadata Error", "Python Error Message: {}".format(ex))
-        #    self.error = True
+        except Exception:
+           errorWindow("Image Error", "Python Error Message: {}".format(traceback.format_exc()))
+
     def color_change(self, ch, color, win_title, col_title, labels, slicescrollbar, img_plot, label, cur_label, index, feature_file, file_info, ch_info, imageID, pjt):
         colors=colorchannelWindow(ch, color, win_title, col_title, labels)
         self.color=colors.color
@@ -212,8 +134,8 @@ class interactive_points():
 
     def __call__ (self, event): #picker is right-click activation
         if event.mouseevent.inaxes is not None and event.mouseevent.button is MouseButton.RIGHT:
-            if len(self.ch)==0 or not os.path.exists(self.ch[0]):
-                return(errorWindow("Images", "Image Filenames Column invalid. Go to 'Change Plot Data Columns' and select valid Image Filenames Column"))
+            if len(self.ch)==0:# or not os.path.exists(self.ch[0]):
+                return(errorWindow("Images", "Image Filenames Column Empty. Go to 'Change Plot Data Columns' and select valid Image Filenames Column"))
             #https://github.com/matplotlib/matplotlib/issues/ 19735   ---- code below from github open issue. wrong event.ind coordinate not fixed in current version matplotlib...
             xx = event.mouseevent.x
             yy = event.mouseevent.y

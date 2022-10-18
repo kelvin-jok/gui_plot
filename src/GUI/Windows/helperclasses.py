@@ -21,6 +21,7 @@ from PyQt5.QtCore import *
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar
 import numpy as np
+from math import ceil
 from collections import OrderedDict
 import os
 import sys
@@ -57,39 +58,6 @@ class NavigationToolbar(NavigationToolbar):
         (None, None, None, None),
         ('Save', 'Save the figure', 'filesave', 'save_figure')
     )
-
-
-'''
-class CheckableComboBox(QComboBox):
-    def __init__(self):
-        super(CheckableComboBox, self).__init__()
-        self.view().pressed.connect(self.handleItemPressed)
-        self.setModel(QStandardItemModel(self))
-
-    def handleItemPressed(self, index):
-        item = self.model().itemFromIndex(index)
-        if item.checkState() == Qt.Checked:
-            item.setCheckState(Qt.Unchecked)
-        else:
-            item.setCheckState(Qt.Checked)
-
-
-        self.ComboBox = CheckableComboBox()
-        self.toolbutton = QtWidgets.QToolButton(self)
-        self.toolbutton.setText('Categories ')
-        self.toolmenu = QtWidgets.QMenu(self)
-        for i in range(3):
-            self.ComboBox.addItem('Category %s' % i)
-            item = self.ComboBox.model().item(i, 0)
-            item.setCheckState(QtCore.Qt.Unchecked)
-            action = self.toolmenu.addAction('Category %s' % i)
-            action.setCheckable(True)
-        self.toolbutton.setMenu(self.toolmenu)
-        self.toolbutton.setPopupMode(QtWidgets.QToolButton.InstantPopup)
-        myBoxLayout.addWidget(self.toolbutton)
-        myBoxLayout.addWidget(self.ComboBox)
-'''
-
 
 # General PyQt Checkbox/check all
 class checkbox(object):
@@ -144,29 +112,33 @@ class selectWindow(object):
         win.setWindowTitle(win_title)
         win.setLayout(QGridLayout())
         self.x_press = True
+        self.imgpath=""
         ok_button = QPushButton("OK")
 
         # setup checkbox for groups
         if len(chk_lbl) > 0:
             if filter_window:
                 #select columns for each category
-                ch_btn, self.chcols, ch_path = self.select_column(["Select Filename Columns", "Add Path"], "Image Filenames (Note: Must use Add Path for this module)", win, 0, 0,  (lambda x: "\n".join(x) if len(x)>0 else "No Selected Columns" )(chan_cols))
-                colorby_btn, self.colorby_txt = self.select_column(["colourby groups"], "Colorby Selection", win, 0, 1, (lambda x: "\n".join(x)  if len(x)>0 else "No Selected Columns" )(groupings))
-                plotcol_btn, self.plotcols = self.select_column(["Select Plot Data Columns"], " Current Plot Data Selection", win, 0, 2, (lambda x: "\n".join(x) if len(x)>0 else "No Selected Columns" )(plot_cols))
+                old_path="".join(list(filter(lambda x: os.path.exists(x), chan_cols)))
+                ch_cols=list(filter(lambda x: not os.path.exists(x) and len(x)>0, chan_cols))
+                ch_btn, self.chcols, ch_path = self.select_column(["Select Filename Columns", "Add Path"], "Image Filename Column \n(Note: Must use Add Path button below if path not in dataset)", win, 0, 0,  (lambda x: "\n".join(x) if len(x)>0 else "No Selected Columns" )(ch_cols))
+                if old_path:
+                    if len(old_path) > 50:
+                        old_path = '\n'.join(old_path[i + 49 * i:i + 50 * (i + 1)] for i in range(ceil(len(old_path) / 50)))
+                    ch_path.setText(old_path)
+                colorby_btn, self.colorby_txt = self.select_column(["Labels groups"], "Labels Column Selection\n", win, 0, 1, (lambda x: "\n".join(x)  if len(x)>0 else "No Selected Columns" )(groupings))
+                plotcol_btn, self.plotcols = self.select_column(["Select Plot Data Columns"], " Current Plot Data Selection\n", win, 0, 2, (lambda x: "\n".join(x) if len(x)>0 else "No Selected Columns" )(plot_cols))
                 #plotting raw data vs dimensionality reduction
                 raw_data_layout = QVBoxLayout()
-                #reduce_box = checkbox('Current Plot Analysis', ["Plot Dimensionality Reduction"], raw_data_layout, [], False)
-                #reduce_box.grp_box.findChildren[0].setChecked(True)
                 raw_box = checkbox('Dimesion Reductionality Plot Analysis', ["Optional Checkbox: Plot Raw Data (Note: At least two axes must be value other than None)"], raw_data_layout, [], False)
                 self.axis = dropdownbox(['x-axis (only for Plot Raw Data)', 'y-axis (only for Plot Raw Data)', 'z-axis (only for Plot Raw Data)'], raw_cols, raw_data_layout)
 
-                raw_data_layout.addWidget(ok_button)
-                raw_data_layout.addStretch(1)
                 win.layout().addLayout(raw_data_layout, 0, 3)
+                win.layout().addWidget(ok_button, 1, 3)
 
                 #signal callbacks
                 colorby_btn.clicked.connect(lambda: self.filtered_col(chk_lbl, "Color Column Selection", "Press to Add/Remove Columns", self.colorby_txt))
-                ch_btn.clicked.connect(lambda: self.filtered_col(chk_lbl, "Imagefile Column Selection", "Press to Add/Remove Columns", self.chcols, data=rowdata, user_path=ch_path.text()))
+                ch_btn.clicked.connect(lambda: self.filtered_col(chk_lbl, "Imagefile Column Selection", "Press to Add/Remove Columns", self.chcols, data=rowdata, user_path=ch_path.text().replace("\n", "")))
                 plotcol_btn.clicked.connect(lambda: self.filtered_col(filter_lbl, "Plot Data Column Selection", "Press to Add/Remove Columns", self.plotcols,self.axis.boxes, raw_box.grp_box.findChildren(QCheckBox)[0].isChecked()))
                 #reduce_box.grp_box.findChildren(QCheckBox)[0].stateChanged.connect(lambda: raw_box.grp_box.findChildren(QCheckBox)[0].setChecked(False) if reduce_box.grp_box.findChildren(QCheckBox)[0].isChecked()==True else None)
                 raw_box.grp_box.findChildren(QCheckBox)[0].stateChanged.connect(lambda: [box.addItems(['None'] + self.plotcols.toPlainText().rsplit('\n')) for box in self.axis.boxes if self.plotcols.toPlainText()!="No Selected Columns"]
@@ -181,63 +153,9 @@ class selectWindow(object):
                 lbl_box = checkbox(grp_title, chk_lbl, win, [0, 0], True)
                 ok_button.clicked.connect(lambda: self.selected(win, groupings, lbl_box.grp_box.findChildren(QCheckBox)))
                 win.layout().addWidget(ok_button, 3, 0)
-            # lbl_box=checkbox(grp_title, chk_lbl, win, [0, 0], True)
-            # ok_button.clicked.connect(lambda: self.selected(lbl_box.grp_box, filtby, win, groupings, filterlist))
-        # setup Column box
-        '''
-        if len(col_lbl) > 0:
-            ch_title = QLabel(col_title)
-            ch_title.setFont(QFont('Arial', 10))
-            ch_box = QGroupBox()
-            ch_box.setFlat(True)
-            ch_vbox = QVBoxLayout()
-            ch_vbox.addWidget(ch_title)
-            # add columns to layout
-            for lbl in col_lbl:
-                ch_label = QLabel(lbl)
-                ch_vbox.addWidget(ch_label)
-            ch_vbox.addStretch(1)
-            ch_box.setLayout(ch_vbox)
-            win.layout().addWidget(ch_box, 0, 2)
-            win.layout().addWidget(ok_button, 1, 2)
-            if len(chk_lbl) == 0:
-                ok_button.clicked.connect(lambda: win.close())
-        else:
-            win.layout().addWidget(ok_button, 3, 0)
-        '''
-        # select columns window
-        # if filter_window:
-        '''
-            col_box = QVBoxLayout()
-            self.colselect=[]
-            filter_btn = QPushButton("Select Columns for Dimensionality Reduction")
-            select_title=QLabel("Selected Columns")
-            col_txt=QLabel('No Selected Columns')
-            col_txt.setStyleSheet("background-color: white")
-            col_txt.setWordWrap(True)
-            col_txt.setAlignment(Qt.AlignTop)
-            col_txt.setMinimumHeight(350)
-            col_box.addWidget(select_title)
-            col_box.addWidget(filter_btn)
-            col_box.addWidget(col_txt)
-            col_box.addStretch(1)
-            win.layout().addLayout(col_box, 0, 1)
-#            win.layout().addWidget(col_txt, 1, 1)
- #           win.layout().addWidget(filter_btn, 0, 1)
-            #testing
-        '''
-        '''
-        chk_lbl = ['hello', 'hi', 'this is a long sentence', 'this is a long sentence thanks', 'this is way too long',
-                   '1', '2', '1','3', '3', '4', '5', '6', '7', '8', '10', '20', '30', '40', '50', '60', '70', '80', '11', '21', '31', '41',
-                   '51', '61', '71', '81', '19', '29', '39', '49', '59', '69', '79', '89']
-        '''
-        # self.colselect = []
-        # self.select_column("Select Columns for Dimensionality Reduction", "Selected Columns", self.colselect)
-        # filter_btn.clicked.connect(lambda: self.filtered_col(chk_lbl, "Column selection", "Columns", col_txt))
-
         # size window to fit all elements
         minsize = win.minimumSizeHint()
-        minsize.setHeight(win.minimumSizeHint().height())
+        minsize.setHeight(win.minimumSizeHint().height() + 20)
         minsize.setWidth(win.minimumSizeHint().width() + 100)
         win.setFixedSize(minsize)
         win.show()
@@ -246,16 +164,24 @@ class selectWindow(object):
     # return final selected groups/results
     def selected(self, win, groupings, grp_box, raw=False, axes=False, user_path=False):
         if isinstance(grp_box, str):
-            if self.plotcols.toPlainText() in ["No Selected Columns",""]:
-                errorWindow("Filter Feature File Error", "Current Plot Data Selection must have selected columns")
+            #verify data plot columns
+            if self.plotcols.toPlainText() in ["No Selected Columns",""] or len(self.plotcols.toPlainText().rsplit("\n"))<2:
+                errorWindow("Filter Feature File Error", "Current Plot Data Selection must have at least two column names")
                 return None
             else:
-                self.imgpath=user_path.text()
+                #verify path
+                if user_path.text() != 'Add Path':
+                    self.imgpath=user_path.text().replace('\n', '')
+                else:
+                    self.imgpath=""
+                #plot raw data verify columns
                 if raw==True:
                     ax=[axis.currentText() for axis in axes]
-                    print(ax.count("None"))
                     if ax.count("None")>1:
                         errorWindow("Plot Raw Data", "At least two axes must be value other than None")
+                        return None
+                    elif len(np.unique(ax))<3:
+                        errorWindow("Plot Raw Data", "Each axes must have a unique column name")
                         return None
                 else:
                     groupings.extend(grp_box.rsplit("\n"))
@@ -272,10 +198,14 @@ class selectWindow(object):
         def path_find(button):
             folder= str(QFileDialog.getExistingDirectory(None, 'Select the Folder Directory for your Images'))
             if folder:
+                #textwrap button text
+                if len(folder)>50:
+                    folder='\n'.join(folder[i+49*i:i+50*(i+1)] for i in range(ceil(len(folder)/50)))
                 button.setText(folder)
+            elif self.chcols.toPlainText() not in ['No Selected Columns', ""]:
+                pass
             else:
                 button.setText('Add Path')
-
         col_box = QVBoxLayout()
         filter_btn = QPushButton(btn_names[0])
         select_title = QLabel(title)
@@ -294,7 +224,7 @@ class selectWindow(object):
         if len(btn_names)>1:
            path_add=QPushButton(btn_names[1])
            path_add.clicked.connect(lambda: path_find(path_add))
-           col_box.addWidget(path_add)
+           win.layout().addWidget(path_add)
            return(filter_btn, col_txt, path_add)
         return (filter_btn, col_txt)
 

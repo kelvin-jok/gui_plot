@@ -53,7 +53,7 @@ class displayWindow(QWidget):
         clustering = data.addMenu("Clustering")
         estimate = clustering.addAction("Estimate Clusters")
         setnumber = clustering.addAction("Set Number of Clusters")
-        piemaps = clustering.addAction("Pie Maps")
+        piemaps = clustering.addAction("Cluster Pie Maps (2D - Must have X and Y axis)")
         export = clustering.addAction("Export Cluster Results")
         plotproperties = menubar.addMenu("Plot Properties")
         rotation_enable = plotproperties.addAction("Enable 3D Rotation (Left-Click) & Zoom (Right-Click)")
@@ -87,14 +87,14 @@ class displayWindow(QWidget):
         boxlayout.addWidget(dimensionbox, 2, 1, 1, 1)
         boxlayout.addWidget(data_columns, 3, 1, 1, 1)
         boxlayout.addWidget(cmap, 2, 2, 1, 1)
-        boxlayout.addWidget(QLabel("Color By"), 0, 2, 1, 1)
+        boxlayout.addWidget(QLabel("Color By Labels"), 0, 2, 1, 1)
         boxlayout.addWidget(colordropdown, 1, 2, 1, 1)
         box.setLayout(boxlayout)
         #menu actions activated
         inputfile.triggered.connect(lambda: self.loadFeaturefile(colordropdown, map_type, True))
         estimate.triggered.connect(lambda: Clustering().cluster_est(self.filtered_data) if len(self.plot_data) > 0 else errorWindow("Error Dialog","Please Select Feature File. No data is currently displayed"))
         setnumber.triggered.connect(lambda: self.setnumcluster(colordropdown.currentText()) if len(self.plot_data) > 0 else errorWindow("Error Dialog","Please Select Feature File. No data is currently displayed"))
-        piemaps.triggered.connect(lambda: piechart(self.plot_data, self.filtered_data, self.numcluster, np.array(self.labels), self.plot[0].get_cmap()) if len(self.plot_data) > 0 else errorWindow("Error Dialog","Please Select Feature File. No data is currently displayed"))
+        piemaps.triggered.connect(lambda: piechart(self.plot_data, self.filtered_data, self.numcluster, np.array(self.labels), self.plots[0].get_cmap()) if len(self.plot_data) > 0 else errorWindow("Error Dialog","Please Select Feature File. No data is currently displayed"))
         export.triggered.connect(lambda: export_cluster(self.plot_data, self.filtered_data, self.numcluster, self.feature_file[0]) if len(self.plot_data) >0 else errorWindow("Error Dialog","Please Select Feature File. No data is currently displayed"))
         rotation_enable.triggered.connect(lambda: self.main_plot.axes.mouse_init())
         rotation_disable.triggered.connect(lambda: self.main_plot.axes.disable_mouse_rotation())
@@ -167,7 +167,7 @@ class displayWindow(QWidget):
         elif isinstance(prevfile, str) and os.path.exists(prevfile) == False:
             errorWindow("Feature File Error","Feature File Path found in selected Plot Data file does not exist: \n'{}'".format(prevfile))
         if filename != '' or (not isinstance(prevfile, type(None)) and os.path.exists(prevfile)):
-            #try:
+            try:
                 self.feature_file.clear()
                 if new_plot and filename:
                     self.feature_file.append(filename)
@@ -179,10 +179,10 @@ class displayWindow(QWidget):
                     reset_view(self)
                     self.data_filt(grouping, self.projection, plot.currentText(), new_plot)
                     self.numcluster=None
-            #except Exception as ex:
+            except Exception as ex:
                 if len(self.plot_data)==0:
                     grouping.clear()
-            #    errorWindow("Feature File Error", "Check Validity of Feature File (.txt). \nPython Exception Error: {}".format(ex))
+                errorWindow("Feature File Error", "Check Validity of Feature File (.txt). \nPython Exception Error: {}".format(traceback.format_exc()))
 
 
     def color_groupings(self, grouping, plot, new_plot):
@@ -213,19 +213,14 @@ class displayWindow(QWidget):
             self.ch_path.clear()
             self.plotcols.clear()
             self.raw_col.clear()
-
+            #channel paths
             if win.chcols.toPlainText() not in ['No Selected Columns', '']:
-                #add path button used
-                if win.imgpath!='Add Path':
-                    self.ch_path.extend([win.imgpath] + win.chcols.toPlainText().rsplit('\n'))
-                #path exists in filename
-                else:
-                    self.ch_path.extend(win.chcols.toPlainText().rsplit('\n'))
+                self.ch_path.extend([win.imgpath] + win.chcols.toPlainText().rsplit('\n'))
             #selected plot columns
             if win.plotcols.toPlainText() not in ['No Selected Columns', '']:
                 self.plotcols.extend(win.plotcols.toPlainText().rsplit('\n'))
             self.raw_col=[box.currentText() for box in win.axis.boxes]
-
+            #raw data option
             if len(self.raw_col)>0 and self.raw_col.count("None")<2:
                 if plot.findText("Raw Data")==-1:
                     plot.addItem("Raw Data")
@@ -242,10 +237,11 @@ class displayWindow(QWidget):
             feature_data = pd.read_csv(self.feature_file[0], sep='\t', na_values='        NaN')
         def id_labels(feature_data, X, plot):
             print('Dataset shape:', feature_data.shape)
+            self.filtered_data = X.to_numpy().astype(np.float64)
             if plot!='Raw Data':
                 self.filtered_data = X.to_numpy().astype(np.float64)
             else:
-                self.filtered_data=np.array([X[col].tolist() if col in X.columns else np.zeros(X.shape[0]) for col in self.raw_col])
+                self.filtered_data=np.stack([X[col].to_numpy().astype(np.float64) if col in X.columns else np.zeros(X.shape[0]) for col in self.raw_col], axis=1)
             # reset labels
             z = np.ones(X.shape[0]).astype(int)
             self.labels.clear()
@@ -258,17 +254,12 @@ class displayWindow(QWidget):
                     self.labels.extend(list(map(str, z)))
             else:
                 self.labels.extend(z.tolist())
-
-            print(self.labels)
             result_plot(self, self.filtered_data, projection, plot, new_plot)
 
         if plot =="Raw Data":
             X=feature_data.copy()
             X=X[np.array(self.raw_col)[np.where(np.array(self.raw_col)!='None')]]
-
             X.dropna(axis=0, inplace=True)
-            print(X)
-            print(feature_data)
             id_labels(feature_data, X, plot)
         else:
             featurecols=self.plotcols
