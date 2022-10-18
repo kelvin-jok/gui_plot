@@ -127,9 +127,9 @@ class piechart(object):
             win = QDialog()
             win.setWindowTitle("Piechart")
             win.setLayout(QGridLayout())
+            datafilt=datafilt[~np.all(datafilt == 0, axis=1)]
             # clusters and centers
-            clusters, count, idx = Clustering().computeClustering(datafilt, numclusters,
-                                                                  np.array(list(zip(plot_data[0], plot_data[1]))))
+            clusters, count, idx = Clustering().computeClustering(datafilt, numclusters,np.array(list(zip(plot_data[0], plot_data[1]))))
             groups = np.unique(labels)
             self.max_piesize = 3000  # maximum matplotlib piechart size.
             self.main_plot = MplCanvas(self, width=10, height=10, dpi=100, projection="2d")
@@ -139,7 +139,7 @@ class piechart(object):
                 self.main_plot.axes.plot(plot_data[0][ind], plot_data[1][ind], 'ok', alpha=0.4)
                 for x in ind[0]:
                     self.main_plot.axes.plot([plot_data[0][x], plot_data[0][i]], [plot_data[1][x], plot_data[1][i]],
-                                             'k-', alpha=0.2)
+                                             'k-', alpha=0.1)
             # pie radius norm
             axisRange = abs(np.max(plot_data[0]) - np.min(plot_data[0]));
             maxRadius = .06 * axisRange
@@ -170,11 +170,9 @@ class piechart(object):
                     s1, mark = pie_slice(sum(parts[:x]), sum(parts[:x + 1]))
                     self.main_plot.axes.scatter(plot_data[0][cluster], plot_data[1][cluster], marker=mark,
                                                 s=s1 ** 2 * self.max_piesize * rsize[size_ind],
-                                                facecolor=colors[parts_ind[0][x]])
-                self.main_plot.axes.text(plot_data[0][cluster], plot_data[1][cluster], s=size_ind + 1,
-                                         horizontalalignment='center', verticalalignment='center',
-                                         bbox=dict(facecolor='white', alpha=0.7))
-            self.main_plot.axes.set_aspect('equal')
+                                                facecolor=colors(1/len(parts)*x), zorder=4)
+                self.main_plot.axes.annotate(str(size_ind+1), xy=(plot_data[0][cluster], plot_data[1][cluster]), xycoords='axes fraction',
+             xytext=(plot_data[0][cluster]+max(rsize),plot_data[1][cluster]), textcoords='data', ha="left", va="bottom", bbox=dict(facecolor='orange', alpha=0.3), zorder=5).draggable()
             self.main_plot.fig.tight_layout()
             self.main_plot.axes.axis('off')
             self.main_plot.draw()
