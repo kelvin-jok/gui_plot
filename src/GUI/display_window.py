@@ -20,7 +20,7 @@ from PyQt5.QtCore import *
 import numpy as np
 import matplotlib
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-import pandas as pd
+from pandas import read_csv
 from pandas.api.types import is_numeric_dtype
 try:
     from .interactive_click import interactive_points
@@ -56,8 +56,8 @@ class displayWindow(QWidget):
         piemaps = clustering.addAction("Cluster Pie Maps (2D - Must have X and Y axis)")
         export = clustering.addAction("Export Cluster Results")
         plotproperties = menubar.addMenu("Plot Properties")
-        rotation_enable = plotproperties.addAction("Enable 3D Rotation (Left-Click) & Zoom (Right-Click)")
-        rotation_disable = plotproperties.addAction("Disable 3D Rotation & Zoom")
+        rotation_enable = plotproperties.addAction("Enable 3D Rotation (Left-Click and Drag)")
+        rotation_disable = plotproperties.addAction("Disable 3D Rotation")
         resetview = plotproperties.addAction("Reset Plot View")
 
         # defining widgets
@@ -96,7 +96,7 @@ class displayWindow(QWidget):
         setnumber.triggered.connect(lambda: self.setnumcluster(colordropdown.currentText()) if len(self.plot_data) > 0 else errorWindow("Error Dialog","Please Select Feature File. No data is currently displayed"))
         piemaps.triggered.connect(lambda: piechart(self.plot_data, self.filtered_data, self.numcluster, np.array(self.labels), self.plots[0].get_cmap()) if len(self.plot_data) > 0 else errorWindow("Error Dialog","Please Select Feature File. No data is currently displayed"))
         export.triggered.connect(lambda: export_cluster(self.plot_data, self.filtered_data, self.numcluster, self.feature_file[0]) if len(self.plot_data) >0 else errorWindow("Error Dialog","Please Select Feature File. No data is currently displayed"))
-        rotation_enable.triggered.connect(lambda: self.main_plot.axes.mouse_init())
+        rotation_enable.triggered.connect(lambda: self.main_plot.axes.mouse_init(rotate_btn=1, zoom_btn=[]))
         rotation_disable.triggered.connect(lambda: self.main_plot.axes.disable_mouse_rotation())
         resetview.triggered.connect(lambda: reset_view(self))
         exportdata.clicked.connect(lambda: save_file(self, map_type.currentText()) if len(self.plot_data) > 0 else errorWindow("Error Dialog","Please Select Feature File. No data is currently displayed"))
@@ -130,7 +130,7 @@ class displayWindow(QWidget):
                 self.main_plot.axes.tick_params(axis='z', labelsize=10)
                 self.main_plot.draw()
                 #rotate left click, zoom right click
-                self.main_plot.axes.mouse_init()
+                self.main_plot.axes.mouse_init(rotate_btn=1, zoom_btn=[])
             if self.feature_file and colordropdown.count() > 0 and len(self.plot_data)>0:
                 self.data_filt(colordropdown, self.projection, plot, True)
 
@@ -174,6 +174,11 @@ class displayWindow(QWidget):
                 else:
                     self.feature_file.append(prevfile)
                 print(self.feature_file)
+            #reset for new loaded file
+                if not isinstance(prevfile, str) or not new_plot:
+                    self.ch_path.clear()
+                    self.plotcols.clear()
+                    self.raw_col.clear()
                 grouping, cancel=self.color_groupings(grouping, plot, new_plot)
                 if not cancel:
                     reset_view(self)
@@ -188,9 +193,9 @@ class displayWindow(QWidget):
     def color_groupings(self, grouping, plot, new_plot):
         #read feature file
         if 'csv' in self.feature_file[0]:
-            df = pd.read_csv(self.feature_file[0], nrows=1, na_values='NaN')
+            df = read_csv(self.feature_file[0], nrows=1, na_values='NaN')
         else:
-            df=pd.read_csv(self.feature_file[0], sep='\t', nrows=1,na_values='NaN') #.txt files
+            df=read_csv(self.feature_file[0], sep='\t', nrows=1,na_values='NaN') #.txt files
         chk_lbl=list(df.columns) #get all columns for labels
         num_lbl=list(df._get_numeric_data().columns) #only numerical columns for analysis
 
@@ -232,12 +237,12 @@ class displayWindow(QWidget):
     def data_filt(self, grouping, projection, plot, new_plot):
         filter_data = grouping.currentText()
         if 'csv' in self.feature_file[0]:
-            feature_data = pd.read_csv(self.feature_file[0], na_values='        NaN')
+            feature_data = read_csv(self.feature_file[0], na_values='        NaN')
         else:
-            feature_data = pd.read_csv(self.feature_file[0], sep='\t', na_values='        NaN')
+            feature_data = read_csv(self.feature_file[0], sep='\t', na_values='        NaN')
         def id_labels(feature_data, X, plot):
             print('Dataset shape:', feature_data.shape)
-            self.filtered_data = X.to_numpy().astype(np.float64)
+            #self.filtered_data = X.to_numpy().astype(np.float64)
             if plot!='Raw Data':
                 self.filtered_data = X.to_numpy().astype(np.float64)
             else:
