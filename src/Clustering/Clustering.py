@@ -22,7 +22,7 @@ from scipy.spatial.distance import cdist
 import sklearn.metrics as met
 import numpy as np
 import matplotlib
-import umap
+from umap import UMAP
 import traceback
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar
 import pandas as pd
@@ -131,7 +131,7 @@ class piechart(object):
             # clusters and centers
             clusters, count, idx = Clustering().computeClustering(datafilt, numclusters,np.array(list(zip(plot_data[0], plot_data[1]))))
             groups = np.unique(labels)
-            self.max_piesize = 3000  # maximum matplotlib piechart size.
+            self.max_piesize = 1000  # maximum matplotlib piechart size.
             self.main_plot = MplCanvas(self, width=10, height=10, dpi=100, projection="2d")
             # plot cluster centers and connect line to data points
             for i in np.unique(idx):
@@ -154,7 +154,7 @@ class piechart(object):
                 [np.count_nonzero(labels[np.where(idx == i)[0].astype(int)] == trt) / np.count_nonzero(idx == i) for trt
                  in groups]) for i in clusters]
 
-            # pie divisions (derived from https://matplotlib.org/stable/gallery/lines_bars_and_markers/scatter_piecharts.html)
+            # pie divisions (derived from https://matplotlib.org/3.1.0/gallery/lines_bars_and_markers/scatter_piecharts.html)
             def pie_slice(prev_ratio, cur_ratio):
                 x1 = np.cos(2 * np.pi * np.linspace(prev_ratio, cur_ratio))
                 y1 = np.sin(2 * np.pi * np.linspace(prev_ratio, cur_ratio))
@@ -170,7 +170,7 @@ class piechart(object):
                     s1, mark = pie_slice(sum(parts[:x]), sum(parts[:x + 1]))
                     self.main_plot.axes.scatter(plot_data[0][cluster], plot_data[1][cluster], marker=mark,
                                                 s=s1 ** 2 * self.max_piesize * rsize[size_ind],
-                                                facecolor=colors(1/len(parts)*x), zorder=4)
+                                                facecolor=colors(1/len(pt)*parts_ind[0][x]), zorder=4)
                 self.main_plot.axes.annotate(str(size_ind+1), xy=(plot_data[0][cluster], plot_data[1][cluster]), xycoords='axes fraction',
              xytext=(plot_data[0][cluster]+max(rsize),plot_data[1][cluster]), textcoords='data', ha="left", va="bottom", bbox=dict(facecolor='orange', alpha=0.3), zorder=5).draggable()
             self.main_plot.fig.tight_layout()
@@ -273,15 +273,15 @@ class Clustering:
             elif plot == "t-SNE":
                 win_per = value_set(X, "Set Perplexity", "Enter Perplexity (Recommended 5 - 50): \nNote: For current dataset max perplexity is {}".format(len(X) - 1),
                                     30)
-                T = TSNE(n_components=dim, perplexity=win_per.val, init='pca', learning_rate='auto').fit_transform(X)
+                T = TSNE(n_components=dim, perplexity=win_per.val, init='pca').fit_transform(X)
                 return (T)
             elif plot == "Sammon":
-                S, E = self.sammon(self, X, dim)
+                S, E = self.sammon(X, dim)
                 return (S)
             elif plot == "UMAP":
                 #https://umap-learn.readthedocs.io/en/latest/api.html
                 win_per = value_set(X, "Set Size of Local Neighbourhood", "Enter Neighbourhood size (Recommended 2 - 100): \nNote: For current dataset have {} samples".format(len(X)), 15)
-                U=umap.UMAP(n_neighbors=win_per.val, n_components=dim).fit_transform(X)
+                U=UMAP(n_neighbors=win_per.val, n_components=dim).fit_transform(X)
                 print(U)
                 print("here")
                 return(U)
@@ -293,7 +293,8 @@ class Clustering:
                 "\n".join("If have data with negative values may cause issues", txt)
             errorWindow("Dimensionality Reduction Failed", txt)
     def cluster_est(self, X):
-        numclust = self.estimateNumClusters(self, X)
+        print(X)
+        numclust = self.estimateNumClusters(X)
 
     # cluster functions from Matlab - Python Translation
     """Static methods for cluster analysis. Referenced from
@@ -302,7 +303,7 @@ class Clustering:
     https://github.com/SRI-RSST/Phindr3D-python/blob/ba588bc925ef72c72103738d17ea922d20771064/phindr_functions.py
     """
 
-    @staticmethod
+
     def cmdscale(D):
         """ copied from https://github.com/tompollard/sammon as no other python libraries appear to have implemented sammon mapping.
 
@@ -350,7 +351,7 @@ class Clustering:
 
         return Y, evals[evals > 0]
 
-    @staticmethod
+
     def rescale(x, newmin=0, newmax=1):
         """
         This function linearly rescales an array to the range [newmin, newmax]
@@ -364,7 +365,7 @@ class Clustering:
         maxx = np.max(x)
         return (x - minx) / (maxx - minx) * (newmax - newmin) + newmin
 
-    @staticmethod
+
     def sammon(self, x, n, display=0, inputdist='raw', maxhalves=20, maxiter=500, tolfun=1e-9, init='default'):
         """copied from https://github.com/tompollard/sammon as no other python libraries appear to have implemented sammon mapping.
         this appears to be the same implementation as is used in matlab's drtoolbox.
@@ -523,7 +524,7 @@ class Clustering:
             self.pmax = 0
             self.pmed = 0
 
-    @staticmethod
+
     def preferenceRange(self, s, method='bound'):
         """called in clsIn
         in third party/clustering folder
@@ -622,10 +623,10 @@ class Clustering:
                           plot=False, details=False, nonoise=False):
         percent_dev = 1  # percentage by which final number of clusters may deviate from Nclusters
         type = type.upper()
-        C = self.clsIn(self, data)
+        C = self.clsIn(data)
         print(C.pmed)
         if type == 'AP':
-            idx, netsim, dpsim, expref, pref = self.apclusterK(self, C.S, numberClusters, prc=percent_dev)
+            idx, netsim, dpsim, expref, pref = self.apclusterK(C.S, numberClusters, prc=percent_dev)
             clusters, counts = np.unique(idx, return_counts=True)
             print('\n')
             for i in range(len(clusters)):
@@ -634,7 +635,7 @@ class Clustering:
             clusterResult = np.arange(0, data.shape[0])
         return (clusters, counts, idx)
 
-    @staticmethod
+
     def clsIn(self, data, beta=0.05, dis='euclidean'):
         """
         dis can be: "euclidean" OR "cosine" OR "hamming"
@@ -662,13 +663,13 @@ class Clustering:
                       -1)  # lower triangular matrix True below the diagonal, false elsewhere.
         C.pmed = np.median(sim[
                                x_x])  # i think this is the right axis, but very unsure. Should be median along rows of 2d matrix since sim[x_x] is 2d matrix however, numpy rows and cols are different than in matlab.
-        C.pmin, C.pmax = self.preferenceRange(self, sim)
+        C.pmin, C.pmax = self.preferenceRange(sim)
         C.S = sim  # similarity matrix
         return C
 
     # https://www.mathworks.com/matlabcentral/mlc-downloads/downloads/submissions/14620/versions/4/previews/apcluster.m/index.html
     # https://www.mathworks.com/matlabcentral/fileexchange/25722-fast-affinity-propagation-clustering-under-given-number-of-clusters?tab=discussions
-    @staticmethod
+
     def apcluster(self, s, p, sparse=False, maxits=500, convits=50, dampfact=0.5, plot=False, details=False,
                   nonoise=False):
         """in third party/clustering
@@ -998,7 +999,7 @@ class Clustering:
                 'To monitor net similarity, activate plotting. Also consider increasing maxits and if necessary, dampfact.')
         return idx, netsim, dpsim, expref, unconverged
 
-    @staticmethod
+
     def apclusterK(self, s, kk, prc=10):
         """called in computeClustering"""
         """in third party/clustering folder"""
@@ -1069,7 +1070,7 @@ class Clustering:
         dn = False
         while not dn:
             tmppref = highpref - (10 ** i) * (highpref - lowpref)
-            idx, netsim, dpsim, expref, unconverged = self.apcluster(self, S, tmppref, dampfact=0.9, convits=50,
+            idx, netsim, dpsim, expref, unconverged = self.apcluster(S, tmppref, dampfact=0.9, convits=50,
                                                                      maxits=1000)
             tmpk = len(np.unique(idx))
             if tmpk <= kk:
@@ -1088,7 +1089,7 @@ class Clustering:
             ntries = 0
             while (np.abs(tmpk - kk) / kk * 100 > prc) and (ntries < 20):
                 tmppref = 0.5 * highpref + 0.5 * lowpref
-                idx, netsim, dpsim, expref, unconverged = self.apcluster(self, S, tmppref, dampfact=0.9, convits=50,
+                idx, netsim, dpsim, expref, unconverged = self.apcluster(S, tmppref, dampfact=0.9, convits=50,
                                                                          maxits=1000)
                 tmpk = len(np.unique(idx))
                 if kk > tmpk:
@@ -1102,14 +1103,14 @@ class Clustering:
         print(f'Found {tmpk} clusters using a preference of {pref}')
         return idx, netsim, dpsim, expref, pref
 
-    @staticmethod
+
     def estimateNumClusters(self, X, pl=True):
-        C = self.clsIn(self, X)  # make similarity matrix
+        C = self.clsIn(X)  # make similarity matrix
         step = 100
         pref = np.linspace(C.pmin, C.pmax, step, endpoint=True)
         yCls = np.zeros(pref.shape)
         for i in range(len(pref)):
-            idx, netsim, dpsim, expref, unconverged = self.apcluster(self, C.S, pref[i], dampfact=0.9)
+            idx, netsim, dpsim, expref, unconverged = self.apcluster(C.S, pref[i], dampfact=0.9)
             uIdx = np.unique(idx)
             if (len(uIdx) == len(idx)) and (i < len(pref)):
                 if i == 0:
@@ -1123,8 +1124,8 @@ class Clustering:
         return numclust
 
     #   getBestPreference.m
-    @staticmethod
-    def getBestPreference(x, y, pl=True):
+
+    def getBestPreference(self, x, y, pl=True):
         """
         % %getBestPreference Perform knee point detection
         % to get the best clusters

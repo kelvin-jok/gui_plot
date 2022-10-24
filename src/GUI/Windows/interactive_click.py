@@ -24,10 +24,9 @@ from mpl_toolkits.mplot3d import proj3d
 import matplotlib
 matplotlib.use('Qt5Agg')
 import numpy as np
-import pandas as pd
+from pandas import read_csv
 from pandas.api.types import is_numeric_dtype
 import time
-from more_itertools import locate
 from .plot_functions import *
 from .colorchannelWindow import *
 import PIL.Image
@@ -89,9 +88,9 @@ class interactive_points():
         if feature_file:
             # extract image details from feature file
             if 'csv' in feature_file[0]:
-                data = pd.read_csv(feature_file[0], na_values='NaN')
+                data = read_csv(feature_file[0], na_values='NaN')
             else:
-                data = pd.read_csv(feature_file[0], sep="\t", na_values='NaN')
+                data = read_csv(feature_file[0], sep="\t", na_values='NaN')
             #get image loc in dataframe
             cur_index=0
             if len(np.unique(imageID)) > 1:

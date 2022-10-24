@@ -26,7 +26,6 @@ from collections import OrderedDict
 import os
 import sys
 from itertools import compress
-import pandas as pd
 
 # matplotlib figure-plot creation
 class MplCanvas(FigureCanvasQTAgg):
