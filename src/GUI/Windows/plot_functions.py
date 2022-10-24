@@ -15,7 +15,6 @@
 # along with Phindr3D.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-from cv2 import medianBlur
 import PIL.Image
 from src.GUI.Windows.colorchannelWindow import *
 import matplotlib
@@ -71,10 +70,10 @@ def result_plot(self, X, projection, plot, new_plot):
     legend=True
     #plot data
     if len(np.unique(lbls))<50 or all(map(lambda x: isinstance(x, str), self.labels)):
-        self.plots.append(self.main_plot.axes.scatter3D(self.plot_data[0], self.plot_data[1], self.plot_data[2], s=10, alpha=1, depthshade=False, picker=1.5, c=cat, cmap=cmap))
+        self.plots.append(self.main_plot.axes.scatter3D(self.plot_data[0], self.plot_data[1], self.plot_data[2], s=10, alpha=1, depthshade=False, picker=1.5, c=cat, cmap=cmap, edgecolor='None'))
     else: #if more than 50 labels default to colorbar
         self.plots.append(self.main_plot.axes.scatter3D(self.plot_data[0], self.plot_data[1], self.plot_data[2], s=10, alpha=1,
-                                      depthshade=False, picker=1.5, c=self.labels, cmap=cmap))
+                                      depthshade=False, picker=1.5, c=self.labels, cmap=cmap, edgecolor='None'))
     if len(np.unique(lbls)) > 50: #if more than 50 labels default to colorbar
         legend=False
     legend_format(self, plot, colors, new_plot, lbls, legend)
@@ -139,18 +138,27 @@ def legend_colors(self):
     try:
         #get plot rgb values
         legnd=self.main_plot.axes.get_legend()
-        map_colors=[np.array(lbl.get_facecolor()[:-1]) for lbl in self.main_plot.axes.get_legend().legendHandles]
+        if not isinstance(legnd, type(None)):
+            map_colors=[np.array(lbl.get_facecolor()[:-1]) for lbl in self.main_plot.axes.get_legend().legendHandles]
 
-        #GUI colorpicker
-        colors = colorchannelWindow(len(np.unique(self.labels)), map_colors[:], "Custom Colour Picker", "Labels", list(map(str, np.unique(self.labels))))
-        colors = np.array(colors.color)
-        # change plot colours
-        if np.array_equal(colors, np.array(map_colors)) == False:
-            for i in range(len(colors)):
-                legnd.legendHandles[i].set_color(colors[i])
-            cmap = mcolors.ListedColormap(colors)
-            self.plots[0].set_cmap(cmap)
-            self.main_plot.draw()
+            #GUI colorpicker
+            colors = colorchannelWindow(len(np.unique(self.labels)), map_colors[:], "Custom Colour Picker", "Labels", list(map(str, np.unique(self.labels))))
+            colors = np.array(colors.color)
+            # change plot colours
+            if np.array_equal(colors, np.array(map_colors)) == False:
+                for i in range(len(colors)):
+                    legnd.legendHandles[i].set_color(colors[i])
+                cmap = mcolors.ListedColormap(colors)
+                self.plots[0].set_cmap(cmap)
+                #print(self.plots[0].get_facecolors())
+                #plt.rcParams['axes.prop_cycle'] = \
+                #from cycler import cycler
+                #self.plots[0].set_array(cycler('color', colors))
+                self.main_plot.fig.canvas.draw()
+                self.main_plot.fig.canvas.flush_events()
+                #self.main_plot.draw()
+        else:
+            errorWindow("Set Legend Colours", "Legend Colours not available for colorbar")
     except:
         errorWindow("Set Legend Colours", "Python Exception Error: {}".format(traceback.format_exc()))
 
