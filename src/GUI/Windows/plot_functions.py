@@ -3,7 +3,7 @@
 #
 # Phindr3D is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
+# the Free Software Foundation, either version 3 of the License, or7
 # (at your option) any later version.
 #
 # Phindr3D is distributed in the hope that it will be useful,
@@ -22,19 +22,14 @@ import matplotlib.pyplot as plt
 from math import ceil, floor
 from textwrap import fill
 from sklearn import preprocessing
-from src.GUI.Windows.helperclasses import *
 import matplotlib.colors as mcolors
 import json
 try:
     from ...Clustering import *
     from .helperclasses import *
-    #from ...Data.DataFunctions import *
-    #from ...Data.Metadata import *
-    #from ...PhindConfig.PhindConfig import PhindConfig
 except ImportError:
     from src.Clustering import *
     from src.GUI.Windows.helperclasses import *
-    #from src.Data.DataFunctions import *
 
 def result_plot(self, X, projection, plot, new_plot):
     #reset plot
@@ -106,10 +101,7 @@ def legend_format(self, plot, colors, new_plot, labels, legend):
         cb_ax = self.main_plot.fig.add_axes([0.625, 0.06, 0.02, 0.875])
         cbar = self.main_plot.fig.colorbar(self.plots[0], cax=cb_ax)
         #colorbar formatting
-        if all(map(lambda x: isinstance(x, str), self.labels)):
-            cbar.ax.tick_params(labelsize=0)
-        else:
-            cbar.ax.tick_params(labelsize=10)
+        cbar.ax.tick_params(labelsize=10)
         cbar.ax.yaxis.offsetText.set_fontsize(2)
         cbar.ax.zorder = 6
         cb_ax.yaxis.tick_right()
@@ -150,20 +142,15 @@ def legend_colors(self):
                     legnd.legendHandles[i].set_color(colors[i])
                 cmap = mcolors.ListedColormap(colors)
                 self.plots[0].set_cmap(cmap)
-                #print(self.plots[0].get_facecolors())
-                #plt.rcParams['axes.prop_cycle'] = \
-                #from cycler import cycler
-                #self.plots[0].set_array(cycler('color', colors))
                 self.main_plot.fig.canvas.draw()
                 self.main_plot.fig.canvas.flush_events()
-                #self.main_plot.draw()
         else:
             errorWindow("Set Legend Colours", "Legend Colours not available for colorbar")
     except:
         errorWindow("Set Legend Colours", "Python Exception Error: {}".format(traceback.format_exc()))
 
-#export current plot data and x, y, z limits
-def save_file(self, map):
+#export current plot data coordinates, columns, reference file, and x, y, z limits
+def save_file(self, map, lbls):
     name = QFileDialog.getSaveFileName(self, 'Save File', filter=self.tr('.json'))
     if name[0] !='':
         info = {
@@ -175,6 +162,7 @@ def save_file(self, map):
                 'channel_paths':self.ch_path,
                 'plot_columns':self.plotcols,
                 'rawdata_columns':self.raw_col,
+                'labels_columns': [lbls.itemText(i) for i in range(1,lbls.count())],
                 'feature_filename': self.feature_file[0]
         }
         with open("".join(name), 'w') as f:
@@ -189,7 +177,7 @@ def import_file(self, map_dropdown, colordropdown, twod, threed):
                 data=json.load(f)
                 #validate json file
                 if list(data.keys())==['plot_projection','plot_coordinates','x_limit','y_limit','z_limit',
-                                       'channel_paths','plot_columns','rawdata_columns','feature_filename']:
+                                       'channel_paths','plot_columns','rawdata_columns','labels_columns','feature_filename']:
                         plot_coord=[np.array(plot_data) for plot_data in data.get('plot_coordinates')]
                         if len(plot_coord)==3:
                             self.plot_data.clear()
@@ -203,14 +191,22 @@ def import_file(self, map_dropdown, colordropdown, twod, threed):
                             self.original_xlim = data.get('x_limit')
                             self.original_ylim = data.get('y_limit')
                             self.original_zlim = data.get('z_limit')
+                            #set previous plot analysis
                             map_dropdown.blockSignals(True)
                             if map_dropdown.findText(data.get('plot_projection'))==-1:
                                 map_dropdown.addItem(data.get('plot_projection'))
                             map_dropdown.setCurrentIndex(map_dropdown.findText(data.get('plot_projection')))
                             map_dropdown.blockSignals(False)
-                            self.ch_path=data.get('channel_paths')
+                            #set previous data column settings
+                            self.ch_path.clear()
+                            self.ch_path.extend(data.get('channel_paths'))
                             self.plotcols=data.get('plot_columns')
                             self.raw_col=data.get('rawdata_columns')
+                            #set colorby labels
+                            colordropdown.blockSignals(True)
+                            colordropdown.clear()
+                            [colordropdown.addItem(item) for item in data.get('labels_columns')]
+                            colordropdown.blockSignals(False)
                             #call feature file selection columns
                             self.loadFeaturefile(colordropdown, map_dropdown, False, data.get('feature_filename'))
                         else:
