@@ -45,45 +45,45 @@ class interactive_points():
         self.ch=ch
         self.lbl_filt=color_filt
     def buildImageViewer(self, label, cur_label, index, color, feature_file, imageID):
+        #window setup
+        self.win = QDialog()
+        self.win.resize(800, 500)
+        self.win.setWindowTitle("ImageViewer")
+        self.error=False
+        grid = QGridLayout()
 
-                self.win = QDialog()
-                self.win.resize(800, 500)
-                self.win.setWindowTitle("ImageViewer")
-                self.error=False
-                grid = QGridLayout()
+        #info layout
+        info_box = QVBoxLayout()
+        file_info = QTextEdit()
+        file_info.setText("FileName:")
+        file_info.setStyleSheet("background-color: white")
+        file_info.setReadOnly(True)
+        file_info.setAlignment(Qt.AlignTop)
+        file_info.setFixedWidth(200)
+        file_info.setMinimumHeight(350)
+        info_box.addStretch()
+        info_box.addWidget(file_info)
+        info_box.addStretch()
 
-                #info layout
-                info_box = QVBoxLayout()
-                file_info = QTextEdit()
-                file_info.setText("FileName:")
-                file_info.setStyleSheet("background-color: white")
-                file_info.setReadOnly(True)
-                file_info.setAlignment(Qt.AlignTop)
-                file_info.setFixedWidth(200)
-                file_info.setMinimumHeight(350)
-                info_box.addStretch()
-                info_box.addWidget(file_info)
-                info_box.addStretch()
+        #image plot layout
+        x = []
+        y = []
+        main_plot = MplCanvas(self, width=10, height=10, dpi=600, projection='2d')
+        main_plot.fig.set_facecolor('#f0f0f0')
+        main_plot.axes.scatter(x, y)
+        main_plot.axes.get_xaxis().set_visible(False)
+        main_plot.axes.get_yaxis().set_visible(False)
 
-                #image plot layout
-                x = []
-                y = []
-                main_plot = MplCanvas(self, width=10, height=10, dpi=600, projection='2d')
-                main_plot.fig.set_facecolor('#f0f0f0')
-                main_plot.axes.scatter(x, y)
-                main_plot.axes.get_xaxis().set_visible(False)
-                main_plot.axes.get_yaxis().set_visible(False)
+        #parent layout
+        toolbar = NavigationToolbar(self.main_plot, self.win)
+        grid.addWidget(toolbar, 0, 1)
+        grid.addLayout(info_box, 1, 0)
+        grid.addWidget(main_plot, 1, 1)
+        self.win.setLayout(grid)
 
-                #parent layout
-                toolbar = NavigationToolbar(self.main_plot, self.win)
-                grid.addWidget(toolbar, 0, 1)
-                grid.addLayout(info_box, 1, 0)
-                grid.addWidget(main_plot, 1, 1)
-                self.win.setLayout(grid)
-
-                #callbacks
-                self.plot_img(main_plot, self.color, label, cur_label, index, feature_file, file_info, imageID)
-                self.win.exec()
+        #callbacks
+        self.plot_img(main_plot, self.color, label, cur_label, index, feature_file, file_info, imageID)
+        self.win.exec()
     def read_featurefile(self, color, label, cur_label, index, feature_file, file_info, file_text, imageID, chans):
         if feature_file:
             # extract image details from feature file
@@ -91,7 +91,7 @@ class interactive_points():
                 data = read_csv(feature_file[0], na_values='NaN')
             else:
                 data = read_csv(feature_file[0], sep="\t", na_values='NaN')
-            #get image loc in dataframe
+            #get image location in dataframe
             cur_index=0
             if len(np.unique(imageID)) > 1:
                 cur_index=index
@@ -139,9 +139,7 @@ class interactive_points():
             xx = event.mouseevent.x
             yy = event.mouseevent.y
             label = event.artist.get_label()
-            #print(label)
-            #label_ind=np.where(np.array(self.labels)==label)[0]
-            #print(label_ind)
+
             # magic from https://stackoverflow.com/questions/10374930/matplotlib-annotating-a-3d-scatter-plot
             #x2, y2, z2 = proj3d.proj_transform(self.data[0][label_ind[0]], self.data[1][label_ind[0]], self.data[2][label_ind[0]], self.main_plot.axes.get_proj())
             x2, y2, z2 = proj3d.proj_transform(self.data[0][0], self.data[1][0],
@@ -155,11 +153,9 @@ class interactive_points():
             imin = 0
             dmin = 10000000
             for i in range(len(self.labels)):
-            #for i in range(np.shape(label_ind)[0]):
                 # magic from https://stackoverflow.com/questions/10374930/matplotlib-annotating-a-3d-scatter-plot
                 x2, y2, z2 = proj3d.proj_transform(self.data[0][i], self.data[1][i],
                                                    self.data[2][i], self.main_plot.axes.get_proj())
-                #x2, y2, z2 = proj3d.proj_transform(self.data[0][label_ind[i]], self.data[1][label_ind[i]], self.data[2][label_ind[i]], self.main_plot.axes.get_proj())
                 x3, y3 = self.main_plot.axes.transData.transform((x2, y2))
                 # magic from https://stackoverflow.com/questions/10374930/matplotlib-annotating-a-3d-scatter-plot
                 d = np.sqrt((x3 - xx) ** 2 + (y3 - yy) ** 2)
@@ -171,17 +167,8 @@ class interactive_points():
                                         self.data[1][imin],
                                         self.data[2][imin], s=35, facecolor="none",
                                         edgecolor='gray', alpha=1)
-            '''
-            self.main_plot.axes.scatter3D(self.data[0][label_ind[imin]],
-                                        self.data[1][label_ind[imin]],
-                                        self.data[2][label_ind[imin]], s=35, facecolor="none",
-                                        edgecolor='gray', alpha=1)
-            '''
             #for debugging
             #print(self.data[0][label_ind[imin]], self.data[1][label_ind[imin]], self.data[2][label_ind[imin]])
             self.main_plot.draw()
             self.main_plot.figure.canvas.draw_idle()
             self.buildImageViewer(self.labels,label, imin,self.color,self.feature_file, self.imageID)
-
-class ColorIMG(Exception):
-    pass

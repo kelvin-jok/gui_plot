@@ -76,6 +76,7 @@ class colorchannelWindow(object):
             #Qt custom Colorpicker. Update channel button and current colour to selected colour. Update channel color list.
             wincolor=QColorDialog()
             btn_num=0
+            #check selected button
             for btns in range(len(self.btn)):
                 if self.btn[btns].text()==button.text():
                     btn_num=btns
@@ -83,6 +84,7 @@ class colorchannelWindow(object):
             curcolor = (np.array(self.tmp_color[btn_num]) * 255).astype(int)
             wincolor.setCurrentColor(QColor.fromRgb(curcolor[0], curcolor[1], curcolor[2]))
             wincolor.exec_()
+            #if valid colour update button
             rgb_color = wincolor.selectedColor()
             if rgb_color.isValid():
                 self.btn[btn_num].setStyleSheet('background-color: rgb' +str(rgb_color.getRgb()[:-1]) +';')
